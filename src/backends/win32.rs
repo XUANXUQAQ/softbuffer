@@ -84,6 +84,7 @@ impl Buffer {
 
         // XXX alignment?
         // XXX better to use CreateFileMapping, and pass hSection?
+        // XXX test return value?
         let mut pixels: *mut u32 = ptr::null_mut();
         let bitmap = unsafe {
             Gdi::CreateDIBSection(
