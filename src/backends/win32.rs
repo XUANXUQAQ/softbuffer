@@ -84,7 +84,6 @@ impl Buffer {
 
         // XXX alignment?
         // XXX better to use CreateFileMapping, and pass hSection?
-        // XXX test return value?
         let mut pixels: *mut u32 = ptr::null_mut();
         let bitmap = unsafe {
             Gdi::CreateDIBSection(
@@ -96,7 +95,17 @@ impl Buffer {
                 0,
             )
         };
-        assert!(!bitmap.is_null());
+
+        // Check if CreateDIBSection failed and log the error
+        if bitmap.is_null() {
+            let error = io::Error::last_os_error();
+            tracing::error!(
+                "CreateDIBSection failed with error code {}: {}",
+                error.raw_os_error().unwrap_or(-1),
+                error
+            );
+            panic!("CreateDIBSection failed: {}", error);
+        }
         let pixels = NonNull::new(pixels).unwrap();
 
         unsafe {
@@ -439,8 +448,19 @@ impl Command {
 
             Self::Allocate { dc, callback } => {
                 // Allocate a DC and send it back.
-                let dc = unsafe { Gdi::CreateCompatibleDC(dc) };
-                callback.send(dc).ok();
+                let new_dc = unsafe { Gdi::CreateCompatibleDC(dc) };
+
+                // Check if allocation failed and log the error
+                if new_dc.is_null() {
+                    let error = io::Error::last_os_error();
+                    tracing::error!(
+                        "CreateCompatibleDC failed with error code {}: {}",
+                        error.raw_os_error().unwrap_or(-1),
+                        error
+                    );
+                }
+
+                callback.send(new_dc).ok();
             }
 
             Self::Deallocate(dc) => {
